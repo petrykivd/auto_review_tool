@@ -3,8 +3,10 @@ from functools import lru_cache
 
 
 class GitHubServiceSettings(BaseSettings):
-
     TOKEN: str
+    REVIEW_ALL_FILES: bool = True
+    SUPPORTED_EXTENSIONS: set = {'.py', '.js', '.ts', '.java', '.cpp', '.go', '.rs'}
+    MAX_FILE_SIZE: int = 1024 * 1024  # 1MB
 
     class Config:
         env_file = ".env"
