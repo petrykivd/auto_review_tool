@@ -1,5 +1,6 @@
 from typing import List
 from openai import AsyncOpenAI
+from openai import OpenAIError as InternalOpenAIError
 from loguru import logger
 
 from src.core.exceptions import OpenAIError
@@ -31,7 +32,7 @@ class AIService:
             logger.debug("Successfully received response from OpenAI")
             return response.choices[0].message.content
 
-        except Exception as e:
+        except InternalOpenAIError as e:
             logger.error(f"OpenAI API error: {str(e)}")
             raise OpenAIError(f"Failed to get AI response: {str(e)}")
 
