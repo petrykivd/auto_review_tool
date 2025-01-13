@@ -1,5 +1,12 @@
 from enum import Enum
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    HttpUrl,
+    field_validator,
+    model_validator,
+    ConfigDict,
+)
 from typing import List
 
 
@@ -35,14 +42,11 @@ class CodeReviewRequest(BaseModel):
             raise ValueError("URL must be a GitHub repository URL")
         return value
 
-    @field_validator('candidate_level')
-    def validate_candidate_level(cls, value: str) -> str:
-        if value not in [level.value for level in CandidateLevel]:
-            raise ValueError(
-                f"Candidate level must be one of: "
-                f"{', '.join([level.value for level in CandidateLevel])}"
-            )
-        return value
+    @model_validator(mode='before')
+    def preprocess_candidate_level(cls, values: dict) -> dict:
+        if isinstance(values.get('candidate_level'), str):
+            values['candidate_level'] = values['candidate_level'].strip()
+        return values
 
 
 class CodeReviewResponse(BaseModel):
@@ -54,14 +58,15 @@ class CodeReviewResponse(BaseModel):
         description="Detailed AI review result with analysis and recommendations"
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "found_files": ["main.py", "tests/test_main.py"],
-                "ai_review_result": "Comprehensive code review with "
-                                    "specific recommendations..."
+                "ai_review_result": "Comprehensive code review "
+                                    "with specific recommendations..."
             }
         }
+    )
 
 
 class ErrorResponse(BaseModel):
