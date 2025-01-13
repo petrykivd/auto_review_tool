@@ -1,7 +1,7 @@
 from typing import List
 from urllib.parse import urlparse
 
-from github import Github, GithubException
+from github import Github, GithubException, Auth
 from loguru import logger
 from pydantic import HttpUrl
 
@@ -15,7 +15,7 @@ settings = get_github_service_settings()
 class GitHubService:
 
     def __init__(self):
-        self.client = Github(login_or_token=settings.TOKEN)
+        self.client = Github(auth=Auth.Token(settings.TOKEN))
         self.supported_extensions = settings.SUPPORTED_EXTENSIONS
         self.review_all = settings.REVIEW_ALL_FILES
         self.max_file_size = settings.MAX_FILE_SIZE
