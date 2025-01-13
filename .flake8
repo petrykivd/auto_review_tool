@@ -1,6 +1,7 @@
 [flake8]
 max-line-length = 88
 extend-ignore =
+    C901,
     D100,
     D104,
     D101,

@@ -8,6 +8,7 @@ from src.services.ai_service.config import get_ai_service_settings
 from src.services.ai_service.prompts import CodeReviewPrompts
 from src.services.ai_service.schemas import Message
 from src.services.github_service.schemas import CodeFile
+from src.utils.rate_limiter import retry_with_backoff
 
 settings = get_ai_service_settings()
 
@@ -17,6 +18,7 @@ class AIService:
         self.client = AsyncOpenAI(api_key=settings.API_KEY)
         self.model: str = settings.MODEL
 
+    @retry_with_backoff(retries=3, backoff_factor=2)
     async def send_message(
         self,
         messages: List[Message],
@@ -33,8 +35,24 @@ class AIService:
             return response.choices[0].message.content
 
         except InternalOpenAIError as e:
-            logger.error(f"OpenAI API error: {str(e)}")
-            raise OpenAIError(f"Failed to get AI response: {str(e)}")
+            error_msg = str(e).lower()
+            if 'rate limit' in error_msg:
+                retry_after = getattr(e, 'retry_after', 20)
+                raise OpenAIError(
+                    message="Rate limit exceeded",
+                    status_code=429,
+                    retry_after=retry_after
+                )
+            else:
+                raise OpenAIError(
+                    message="Failed to get AI response",
+                    status_code=getattr(e, 'status_code', 500)
+                )
+        except Exception as e:
+            raise OpenAIError(
+                message=f"Unexpected error: {str(e)}",
+                status_code=500
+            )
 
     async def send_code_review_message(
         self,

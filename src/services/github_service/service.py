@@ -1,5 +1,6 @@
 from typing import List
 from urllib.parse import urlparse
+import time
 
 from github import Github, GithubException, Auth
 from loguru import logger
@@ -8,6 +9,7 @@ from pydantic import HttpUrl
 from src.core.exceptions import GitHubAPIError
 from src.services.github_service.config import get_github_service_settings
 from src.services.github_service.schemas import CodeFile
+from src.utils.rate_limiter import retry_with_backoff
 
 settings = get_github_service_settings()
 
@@ -20,6 +22,7 @@ class GitHubService:
         self.review_all = settings.REVIEW_ALL_FILES
         self.max_file_size = settings.MAX_FILE_SIZE
 
+    @retry_with_backoff(retries=3, backoff_factor=2)
     async def get_repository_files(self, repo_url: HttpUrl) -> List[CodeFile]:
         try:
             owner, repo_name = self._parse_github_url(repo_url)
@@ -63,10 +66,29 @@ class GitHubService:
             logger.info(f"Found {len(files)} files in {repo_url}")
             logger.info(f"Files: {[file.path for file in files]}")
             return files
-
         except GithubException as e:
-            logger.error(f"GitHub API error: {str(e)}")
-            raise GitHubAPIError(f"Failed to fetch repository files: {str(e)}")
+            if e.status == 403 and 'rate limit' in str(e).lower():
+                raise GitHubAPIError(
+                    message="Rate limit exceeded",
+                    status_code=429,
+                    retry_after=int(
+                        self.client.get_rate_limit().core.reset.timestamp() - time.time()) # noqa
+                )
+            elif e.status == 404:
+                raise GitHubAPIError(
+                    message="Failed to fetch repository files",
+                    status_code=404
+                )
+            else:
+                raise GitHubAPIError(
+                    message=str(e),
+                    status_code=e.status
+                )
+        except Exception as e:
+            raise GitHubAPIError(
+                message=f"Unexpected error: {str(e)}",
+                status_code=500
+            )
 
     @staticmethod
     def _parse_github_url(url: HttpUrl) -> tuple[str, str]:
