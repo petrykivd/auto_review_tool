@@ -1,0 +1,30 @@
+[flake8]
+max-line-length = 88
+extend-ignore =
+    C901,
+    D100,
+    D104,
+    D101,
+    D102,
+    D103,
+    D106,
+    D107,
+    D415,
+    ANN101,
+    ANN204,
+    I100,
+    I101,
+    I201
+max-complexity = 10
+exclude =
+    .git,
+    __pycache__,
+    build,
+    dist,
+    .venv
+per-file-ignores =
+    __init__.py:F401,F403
+    tests/*:D100,D101,D102,D103
+docstring-convention = google
+import-order-style = google
+application-import-names = src
